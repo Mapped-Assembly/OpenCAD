@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { OpenCadApiClient } from "../api/client";
-import { jointControlRange, linkForShape, neutralRobotTransforms, robotCameraFraming, robotPreviewMeshes } from "../robotics";
+import { jointControlRange, linkForShape, robotLinkHierarchy, neutralRobotTransforms, robotCameraFraming, robotPreviewMeshes } from "../robotics";
 import type { RobotImportView, RobotPoseView } from "../robotics";
 import { Viewport3D } from "./Viewport3D";
 
@@ -142,8 +142,10 @@ export function RobotWorkspace({ apiClient, onBack }: RobotWorkspaceProps): JSX.
             <aside className="robot-inspector">
               <h3>Robot links</h3>
               <div role="tree" aria-label="URDF link hierarchy">
-                {Object.keys(model.robot.links).map((name) => (
+                {robotLinkHierarchy(model.robot).map(({ name, depth }) => (
                   <button type="button" role="treeitem" key={name}
+                    style={{ paddingLeft: 8 + depth * 16 }}
+                    aria-level={depth + 1}
                     aria-selected={selectedLink === name}
                     onClick={() => setSelectedLink(name)}>{name}</button>
                 ))}
@@ -167,6 +169,7 @@ export function RobotWorkspace({ apiClient, onBack }: RobotWorkspaceProps): JSX.
                     <p>{joint.parent} → {joint.child} · {joint.joint_type}</p>
                     <p>Axis: {joint.axis.join(", ")} ·
                       Origin (mm): {joint.origin.translation_mm.join(", ")}</p>
+                    <p>Origin rotation (XYZW): {joint.origin.rotation_quaternion_xyzw.join(", ")}</p>
                     <p>Limits: {range?.bounded
                       ? `${range.min} … ${range.max}`
                       : joint.joint_type === "continuous" ? "unbounded" : "not applicable"}</p>
