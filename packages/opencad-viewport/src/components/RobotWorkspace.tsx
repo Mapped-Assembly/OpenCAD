@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { OpenCadApiClient } from "../api/client";
-import { jointControlRange, linkForShape, neutralRobotTransforms, robotPreviewMeshes } from "../robotics";
+import { jointControlRange, linkForShape, neutralRobotTransforms, robotCameraFraming, robotPreviewMeshes } from "../robotics";
 import type { RobotImportView, RobotPoseView } from "../robotics";
 import { Viewport3D } from "./Viewport3D";
 
@@ -25,6 +25,7 @@ export function RobotWorkspace({ apiClient, onBack }: RobotWorkspaceProps): JSX.
     () => model ? poses?.shape_transforms ?? neutralRobotTransforms(model.robot) : {},
     [model, poses],
   );
+  const framing = useMemo(() => robotCameraFraming(meshes, transforms), [meshes, transforms]);
   const selectedShape = selectedLink && model
     ? model.robot.assembly.components[`urdf:${selectedLink}`]?.geometry_refs[0] ?? null
     : null;
@@ -188,6 +189,7 @@ export function RobotWorkspace({ apiClient, onBack }: RobotWorkspaceProps): JSX.
               })}
             </aside>
             <Viewport3D meshes={meshes} shapeTransforms={transforms}
+              cameraPosition={framing.position} cameraTarget={framing.target}
               selectedShapeId={selectedShape}
               onSelectShape={(shapeId) => {
                 const link = linkForShape(model.robot, shapeId);
