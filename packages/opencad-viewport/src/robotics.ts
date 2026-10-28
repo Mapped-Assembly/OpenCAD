@@ -1,5 +1,5 @@
 /** Typed URDF robotics contracts, deliberately separate from scenes and CAD features. */
-import { BoxGeometry, CylinderGeometry, SphereGeometry } from "three";
+import { BoxGeometry, CylinderGeometry, Quaternion, SphereGeometry, Vector3 } from "three";
 import type { BufferGeometry } from "three";
 import type { MeshPayload, RigidTransform } from "./types";
 
@@ -125,3 +125,35 @@ export function linkForShape(robot: RobotDescriptionView, shapeId: string): stri
   }
   return null;
 }
+
+/** Derive an explicitly unvalidated neutral (zero-joint) hierarchy preview. */
+export function neutralRobotTransforms(robot: RobotDescriptionView): Record<string, RigidTransform> {
+  const transforms: Record<string, RigidTransform> = {};
+  const byParent: Record<string, RobotJoint[]> = {};
+  Object.values(robot.joints).forEach((joint) => {
+    (byParent[joint.parent] ??= []).push(joint);
+  });
+  const worldByLink: Record<string, RigidTransform> = {};
+  const compose = (a: RigidTransform, b: RigidTransform): RigidTransform => {
+    const qa = new Quaternion(...a.rotation_quaternion_xyzw);
+    const qb = new Quaternion(...b.rotation_quaternion_xyzw);
+    const p = new Vector3(...b.translation_mm).applyQuaternion(qa)
+      .add(new Vector3(...a.translation_mm));
+    const q = qa.multiply(qb);
+    return { translation_mm: p.toArray() as [number, number, number],
+      rotation_quaternion_xyzw: q.toArray() as [number, number, number, number] };
+  };
+  const identity: RigidTransform = {
+    translation_mm: [0, 0, 0], rotation_quaternion_xyzw: [0, 0, 0, 1],
+  };
+  const visit = (name: string, world: RigidTransform): void => {
+    worldByLink[name] = world;
+    robot.links[name]?.visuals.forEach((visual, index) => {
+      transforms[`urdf:${name}:visual:${index}`] = compose(world, visual.origin);
+    });
+    (byParent[name] ?? []).forEach((joint) => visit(joint.child, compose(world, joint.origin)));
+  };
+  visit(robot.root_link, identity);
+  return transforms;
+}
+
