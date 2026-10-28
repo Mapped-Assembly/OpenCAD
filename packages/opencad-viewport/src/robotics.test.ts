@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { jointControlRange, linkForShape, neutralRobotTransforms, robotPreviewMeshes } from "./robotics";
+import { jointControlRange, linkForShape, neutralRobotTransforms, robotLinkHierarchy, robotPreviewMeshes } from "./robotics";
 import type { RobotImportView, RobotJoint } from "./robotics";
 
 const identity = {
@@ -49,6 +49,7 @@ describe("robot viewport geometry and neutral assembly state", () => {
     expect(meshes.every(mesh => mesh.vertices.length > 0 && mesh.faces.length > 0)).toBe(true);
     expect(linkForShape(model.robot, meshes[1].shapeId)).toBe("tip");
     expect(linkForShape(model.robot, "missing")).toBeNull();
+    expect(robotLinkHierarchy(model.robot)).toEqual([{ name: "base", depth: 0 }, { name: "tip", depth: 1 }]);
   });
 
   it("composes link and visual origins for an explicitly neutral preview", () => {
