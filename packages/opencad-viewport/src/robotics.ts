@@ -190,3 +190,21 @@ export function robotCameraFraming(
     target,
   };
 }
+
+/** Depth-first robot assembly traversal that preserves real link parentage. */
+export function robotLinkHierarchy(
+  robot: RobotDescriptionView,
+): Array<{ name: string; depth: number }> {
+  const seen = new Set<string>();
+  const hierarchy: Array<{ name: string; depth: number }> = [];
+  const visit = (id: string, depth: number): void => {
+    if (seen.has(id)) return;
+    seen.add(id);
+    const item = robot.assembly.components[id];
+    if (!item || !robot.links[item.name]) return;
+    hierarchy.push({ name: item.name, depth });
+    item.child_ids.forEach((child) => visit(child, depth + 1));
+  };
+  robot.assembly.root_ids.forEach((root) => visit(root, 0));
+  return hierarchy;
+}
