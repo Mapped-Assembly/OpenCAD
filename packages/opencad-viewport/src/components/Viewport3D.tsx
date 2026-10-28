@@ -15,6 +15,8 @@ interface Viewport3DProps {
   collisionColor?: string;
   /** Renderer-ready world transforms keyed by shape ID. */
   shapeTransforms?: Readonly<Record<string, RigidTransform>>;
+  cameraPosition?: [number, number, number];
+  cameraTarget?: [number, number, number];
   onSelectShape?: (shapeId: string) => void;
   /** Optional: provide the API client to enable SSE streaming. */
   apiClient?: OpenCadApiClient;
@@ -247,7 +249,7 @@ function StreamingMeshItem({
   );
 }
 
-export function Viewport3D({ meshes, selectedShapeId, highlightedShapeIds, collisionShapeIds, collisionColor, shapeTransforms, onSelectShape, apiClient, useStreaming }: Viewport3DProps): JSX.Element {
+export function Viewport3D({ meshes, selectedShapeId, highlightedShapeIds, collisionShapeIds, collisionColor, shapeTransforms, cameraPosition, cameraTarget, onSelectShape, apiClient, useStreaming }: Viewport3DProps): JSX.Element {
   const isSelected = useCallback(
     (shapeId: string) => highlightedShapeIds?.has(shapeId) ?? shapeId === selectedShapeId,
     [highlightedShapeIds, selectedShapeId],
@@ -260,7 +262,7 @@ export function Viewport3D({ meshes, selectedShapeId, highlightedShapeIds, colli
 
   return (
     <div className="viewport3d">
-      <Canvas camera={{ position: [45, -55, 30], up: [0, 0, 1], fov: 45 }}>
+      <Canvas camera={{ position: cameraPosition ?? [45, -55, 30], up: [0, 0, 1], fov: 45 }}>
         <color attach="background" args={["#f5f7fb"]} />
         <ambientLight intensity={0.8} />
         <directionalLight position={[40, -30, 50]} intensity={1.1} />
@@ -293,7 +295,7 @@ export function Viewport3D({ meshes, selectedShapeId, highlightedShapeIds, colli
               />
             ))}
 
-        <OrbitControls makeDefault />
+        <OrbitControls makeDefault target={cameraTarget ?? [0, 0, 0]} />
         <GizmoHelper alignment="bottom-right" margin={[72, 72]}>
           <GizmoViewport axisColors={["#d14343", "#0f8f53", "#2e63cc"]} labelColor="#18212f" />
         </GizmoHelper>
