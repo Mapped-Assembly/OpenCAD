@@ -1,0 +1,52 @@
+name: Independent Robot URDF Verification
+
+on:
+  pull_request:
+    paths:
+      - "packages/opencad/src/opencad/robotics/**"
+      - "packages/opencad/tests/robotics/**"
+      - "scripts/verify_robot_urdf_independent.py"
+      - ".github/workflows/robotics-independent.yml"
+      - "docs/URDF_VERIFICATION.md"
+  push:
+    branches: [main]
+    paths:
+      - "packages/opencad/src/opencad/robotics/**"
+      - "packages/opencad/tests/robotics/**"
+      - "scripts/verify_robot_urdf_independent.py"
+      - ".github/workflows/robotics-independent.yml"
+  workflow_dispatch:
+
+jobs:
+  urdf-independent:
+    name: Independent FK + pinned Petoi Quaddle
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    env:
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      HF_HUB_ENABLE_HF_TRANSFER: "0"
+      OPENCAD_ROBOT_VERIFICATION_REPORT: reports/robot-verification.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v5
+      - name: Install OpenCAD (no backend or UI dependencies)
+        run: uv sync --package opencad --group test
+      - name: Run mandatory external URDF parser and FK comparisons
+        run: |
+          uv run --package opencad --no-sync \
+            --with 'yourdfpy==0.0.60' \
+            --with 'huggingface-hub==1.12.0' \
+            python scripts/verify_robot_urdf_independent.py
+      - name: Upload independent verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-independent-fk-quaddle-evidence
+          path: reports/robot-verification.json
+          if-no-files-found: warn
+          retention-days: 30
