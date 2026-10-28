@@ -183,6 +183,20 @@ def test_mimic_joint_not_falsely_solved(tmp_path: Path) -> None:
     assert any("missing joint" in warning for warning in result.warnings)
 
 
+def test_pitch_and_roll_frames_and_prismatic_limits(tmp_path: Path) -> None:
+    """Full URDF RPY convention and meter-based prismatic limits remain intact."""
+    xml = _robot(joint_type="prismatic").replace(
+        'rpy="0 0 1.5707963267948966"/>\n        <axis',
+        'rpy="1.5707963267948966 0 0"/>\n        <axis',
+    )
+    result = import_urdf(_write(tmp_path, xml))
+    joint = result.robot.joints["hinge"]
+    assert joint.origin.rotation_quaternion_xyzw[0] == pytest.approx(math.sqrt(0.5))
+    assert joint.origin.rotation_quaternion_xyzw[3] == pytest.approx(math.sqrt(0.5))
+    assert joint.limits["lower"] == -1.2  # meters, not millimeters
+    assert result.robot.metadata["units"]["prismatic_limits"] == "m"
+
+
 def test_snapshot_model_round_trip_is_lossless(tmp_path: Path) -> None:
     """Typed robot metadata and canonical assembly survive JSON serialization."""
     result = import_urdf(_write(tmp_path, _robot()))
@@ -212,7 +226,9 @@ def test_persistent_quaddle_fixture_if_supplied() -> None:
     source = os.environ.get("OPENCAD_TEST_QUADDLE_URDF")
     if source is None:
         pytest.skip("Set OPENCAD_TEST_QUADDLE_URDF for the official Petoi fixture.")
-    result = import_urdf(source)
+    # The official 43 kB XML alone is sufficient for structure verification;
+    # geometry is explicitly flagged unavailable until the mesh assets are present.
+    result = import_urdf(source, require_assets=False)
     assert result.robot.name == "quaddle"
     assert len(result.robot.links) == 46
     assert len(result.robot.joints) == 45
