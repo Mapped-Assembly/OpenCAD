@@ -182,7 +182,7 @@ def test_material_without_name_gets_stable_identifier(tmp_path: Path) -> None:
     material = ET.parse(out.urdf_path).getroot().find("./link/visual/material")
     assert material is not None
     assert material.get("name", "").startswith("opencad_color_")
-    assert material.find("color").get("rgba") == "0.20000000000000001 0.29999999999999999 0.40000000000000002 1"
+    assert [float(v) for v in material.find("color").get("rgba").split()] == pytest.approx((0.2, 0.3, 0.4, 1.0))
     assert import_urdf(out.urdf_path).robot.links["body"].visuals[0].material["rgba"] == pytest.approx((0.2, 0.3, 0.4, 1.0))
 
 
@@ -232,6 +232,9 @@ def test_native_part_link_exports_stl(tmp_path: Path) -> None:
 
     context = RuntimeContext(backend=create_backend("occt"))
     part = Part(context=context).box(20, 10, 5)
+    with pytest.raises(ValueError, match="Invalid ROS"):
+        RobotBuilder("cad_bot").add_part_link("../escape", part, assets_dir=tmp_path / "cad_assets")
+    assert not (tmp_path / "escape.stl").exists()
     robot = (RobotBuilder("cad_bot")
              .add_part_link("body", part, assets_dir=tmp_path / "cad_assets")
              .add_link("end")
