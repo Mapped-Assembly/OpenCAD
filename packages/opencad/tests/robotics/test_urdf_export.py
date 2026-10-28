@@ -90,7 +90,7 @@ def test_native_robot_round_trip(tmp_path: Path) -> None:
     assert len(root.findall("joint")) == 1
     joint = root.find("./joint[@name='wrist']")
     assert joint is not None
-    assert joint.find("origin").get("xyz").split()[0] == pytest.approx(0.125)
+    assert float(joint.find("origin").get("xyz").split()[0]) == pytest.approx(0.125)
     imported = import_urdf(artifact.urdf_path).robot
     assert imported.root_link == "base"
     assert imported.joints["wrist"].limits == robot.joints["wrist"].limits
