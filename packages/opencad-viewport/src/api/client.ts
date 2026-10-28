@@ -1,4 +1,5 @@
 import axios from "axios";
+import type { RobotDescriptionView, RobotImportView, RobotPoseView } from "../robotics";
 import { mockChat, mockSolveSketch } from "../mock/mockData";
 import type {
   ChatRequestPayload,
