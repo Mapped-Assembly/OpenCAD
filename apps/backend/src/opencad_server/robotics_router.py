@@ -92,8 +92,8 @@ def _unpack(data: bytes, filename: str, directory: Path) -> Path:
             if name in seen:
                 raise ValueError(f"Duplicate ZIP path: {name!r}.")
             seen.add(name)
-            if Path(name).suffix.lower() not in {".urdf", ".stl", ".xml"}:
-                raise ValueError(f"Unsupported ZIP asset {name!r}; only URDF/STL/XML permitted.")
+            if Path(name).suffix.lower() not in {".urdf", ".stl", ".xml"} and name != "robot.opencad.json":
+                raise ValueError(f"Unsupported ZIP asset {name!r}; only URDF/STL/XML and the generated manifest are permitted.")
             path = directory.joinpath(*parts)
             if not path.resolve().is_relative_to(directory.resolve()):
                 raise ValueError("ZIP member escapes extraction root.")
