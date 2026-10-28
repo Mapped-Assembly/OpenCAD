@@ -191,6 +191,20 @@ def test_snapshot_model_round_trip_is_lossless(tmp_path: Path) -> None:
     assert restored.robot.assembly.components["urdf:tip"].metadata["parent_joint"] == "hinge"
 
 
+def test_import_cli_writes_typed_robot_json(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """The public CLI should expose the exact same canonical imported document."""
+    from opencad.cli import main
+
+    source = _write(tmp_path, _robot())
+    destination = tmp_path / "out.robot.json"
+    code = main(["import", "urdf", str(source), "--output", str(destination)])
+    assert code == 0
+    document = URDFImportResult.model_validate_json(destination.read_text())
+    assert document.robot.root_link == "base"
+    assert document.robot.joints["hinge"].origin.translation_mm == (100.0, -200.0, 300.0)
+    assert "2 links, 1 joints" in capsys.readouterr().out
+
+
 def test_persistent_quaddle_fixture_if_supplied() -> None:
     """Optional integration check against a separately obtained official Quaddle checkout."""
     import os
