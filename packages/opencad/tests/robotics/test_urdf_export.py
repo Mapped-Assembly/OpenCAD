@@ -170,6 +170,22 @@ def test_rejects_invalid_ros_names(tmp_path: Path, invalid) -> None:
     assert not (tmp_path / "should-not-exist.urdf").exists()
 
 
+def test_material_without_name_gets_stable_identifier(tmp_path: Path) -> None:
+    """Inline RGBA uses an explicit deterministic material name for ROS."""
+    robot = (RobotBuilder("colors").add_link(
+        "body", visuals=[RobotVisual(
+            geometry=RobotGeometry(kind="sphere", radius_mm=5),
+            material={"rgba": [0.2, 0.3, 0.4, 1.0]},
+        )],
+    ).build())
+    out = export_urdf(robot, tmp_path / "colors.urdf")
+    material = ET.parse(out.urdf_path).getroot().find("./link/visual/material")
+    assert material is not None
+    assert material.get("name", "").startswith("opencad_color_")
+    assert material.find("color").get("rgba") == "0.20000000000000001 0.29999999999999999 0.40000000000000002 1"
+    assert import_urdf(out.urdf_path).robot.links["body"].visuals[0].material["rgba"] == pytest.approx((0.2, 0.3, 0.4, 1.0))
+
+
 def test_rejects_unsafe_and_unresolved_meshes(tmp_path: Path) -> None:
     """Do not publish broken URDF references or silently fetch assets."""
     robot = (RobotBuilder("broken").add_link("base", visuals=[
