@@ -247,6 +247,22 @@ docker build \
   .
 ```
 
+## Robotics: URDF import (experimental)
+
+OpenCAD now imports local **URDF robot descriptions** into its typed assembly
+hierarchy, preserving joint names/types, poses, limits, visual and collision
+geometry references, and SI inertial metadata. Meshes remain referenced assets,
+not parametric B-reps. This import does **not** yet run joint motion or physics.
+
+```bash
+opencad import urdf path/to/robot.urdf --asset-root path/to --output robot.opencad.json
+```
+
+Python: `from opencad.robotics import import_urdf`.
+
+See [URDF import and limitations](docs/URDF_IMPORT.md) and
+[the implementation issue](https://github.com/Mapped-Assembly/OpenCAD/issues/2).
+
 ## Configuration
 
 Runtime defaults are documented in `.env.example`.
