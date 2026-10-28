@@ -1,0 +1,48 @@
+name: Robot Constraints
+
+on:
+  pull_request:
+    paths:
+      - "packages/opencad/src/opencad/robotics/**"
+      - "packages/opencad/tests/robotics/test_mechanism_constraints.py"
+      - "scripts/verify_four_bar_benchmark.py"
+      - ".github/workflows/robotics-constraints.yml"
+      - "docs/ROBOT_CONSTRAINTS.md"
+  push:
+    branches: [main]
+    paths:
+      - "packages/opencad/src/opencad/robotics/**"
+      - "scripts/verify_four_bar_benchmark.py"
+      - ".github/workflows/robotics-constraints.yml"
+  workflow_dispatch:
+
+jobs:
+  mechanism-constraints:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    env:
+      OPENCAD_FOUR_BAR_REPORT: reports/four-bar-verification.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: false
+      - name: Install standalone OpenCAD core
+        run: uv sync --package opencad --group test
+      - name: Run versioned mechanism constraints tests
+        run: uv run --no-sync --package opencad python -m pytest packages/opencad/tests/robotics/test_mechanism_constraints.py
+      - name: Solve both four-bar branches against independent cosine law
+        run: uv run --no-sync --package opencad python scripts/verify_four_bar_benchmark.py
+      - name: Publish closure residual and reference discrepancy evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: planar-four-bar-constraint-evidence
+          path: reports/four-bar-verification.json
+          if-no-files-found: warn
+          retention-days: 30
