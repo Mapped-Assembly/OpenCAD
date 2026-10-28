@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: Mapped-Assembly/OpenIndustries
-          ref: 2c54d453120a7cba8c555c885ce1d5f56574cbe6
+          ref: a1d309f6c5c5e9190684d84303e7083658ea1fae
           path: openindustries
           persist-credentials: false
       - uses: actions/setup-python@v5
