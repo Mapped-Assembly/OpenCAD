@@ -6,6 +6,7 @@ import {
   OpenCadApiClient,
   SketchEditor,
   ScenePlayer,
+  RobotWorkspace,
   robotPickPlaceExample,
   Viewport3D,
   createEmptyTree,
@@ -47,6 +48,7 @@ function getLatestGeneratedNodeId(
 
 export default function App(): JSX.Element {
   const [showScene, setShowScene] = useState(false);
+  const [showRobot, setShowRobot] = useState(false);
   const api = useMemo(() => new OpenCadApiClient(), []);
   const [tree, setTree] = useState<FeatureTreeView>(createEmptyTree);
   const [meshErrors, setMeshErrors] = useState<Record<string, string>>({});
@@ -117,6 +119,10 @@ export default function App(): JSX.Element {
     };
   }, [api, loadedShapeIds, tree, viewportShapeIds, meshErrors, meshRetry]);
 
+  if (showRobot) {
+    return <RobotWorkspace apiClient={api} onBack={() => setShowRobot(false)} />;
+  }
+
   if (showScene) {
     return <main className="scene-demo">
       <header>
@@ -146,7 +152,10 @@ export default function App(): JSX.Element {
       />
 
       <main className="workspace">
-        <button type="button" className="scene-demo-toggle" onClick={() => setShowScene(true)}>Robot pick-and-place demo</button>
+        <div className="demo-switcher">
+          <button type="button" className="scene-demo-toggle" onClick={() => setShowScene(true)}>Robot pick-and-place demo</button>
+          <button type="button" className="scene-demo-toggle" onClick={() => setShowRobot(true)}>URDF Robot Workspace</button>
+        </div>
         <CadFileToolbar
           canExport={Boolean(selectedShapeId)}
           onImport={async (file) => {
