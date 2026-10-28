@@ -107,6 +107,35 @@ export class OpenCadApiClient {
     return metadata.transforms;
   }
 
+  /** Parse an explicit local robot.urdf or ZIP bundle without server persistence. */
+  async importRobot(file: File): Promise<RobotImportView> {
+    const response = await axios.post<RobotImportView>(
+      `${this.baseUrl}/robotics/import`, file,
+      { params: { filename: file.name }, headers: { "Content-Type": "application/octet-stream" } },
+    );
+    return response.data;
+  }
+
+  /** Use the existing OpenCAD robot description for exact joint-frame FK. */
+  async evaluateRobot(robot: RobotDescriptionView, positions: Record<string, number>): Promise<RobotPoseView> {
+    const response = await axios.post<RobotPoseView>(
+      `${this.baseUrl}/robotics/poses`, { robot, positions },
+    );
+    return response.data;
+  }
+
+  /** Re-import the original bundle on the backend to prevent stale path abuse. */
+  async exportRobot(file: File): Promise<Blob> {
+    const response = await axios.post<Blob>(
+      `${this.baseUrl}/robotics/export`, file,
+      {
+        params: { filename: file.name }, responseType: "blob",
+        headers: { "Content-Type": "application/octet-stream" },
+      },
+    );
+    return response.data;
+  }
+
   async solveSketch(sketch: SketchPayload): Promise<SolverResult> {
     if (this.useMock) {
       return mockSolveSketch(sketch);
