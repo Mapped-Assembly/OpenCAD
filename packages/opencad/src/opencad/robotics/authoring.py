@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 from opencad.assembly import AssemblyComponent, AssemblyTree
 from opencad.kernel.core.models import RigidTransform
+from opencad.robotics.export import _name
 from opencad.robotics.urdf import (
     RobotDescription,
     RobotGeometry,
@@ -83,8 +84,9 @@ class RobotBuilder:
         Raises:
             BackendUnavailableError: When the installed backend cannot emit STL.
         """
-        if not name or name in self._links:
-            raise ValueError(f"Duplicate or empty robot link name {name!r}.")
+        _name(name, "link")  # Validate before forming a filesystem path.
+        if name in self._links:
+            raise ValueError(f"Duplicate robot link name {name!r}.")
         # The exporter expects native OpenCAD STL mesh coordinates in mm.
         root = Path(assets_dir).resolve()
         root.mkdir(parents=True, exist_ok=True)
