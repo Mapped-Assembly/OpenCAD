@@ -59,6 +59,22 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_backend_argument(run_parser)
     run_parser.set_defaults(func=_cmd_run)
 
+    import_parser = subparsers.add_parser("import", help="Import an external engineering description")
+    import_formats = import_parser.add_subparsers(dest="import_format", required=True)
+    urdf_parser = import_formats.add_parser("urdf", help="Import a local URDF robot assembly")
+    urdf_parser.add_argument("source", help="Local robot.urdf input")
+    urdf_parser.add_argument("--output", help="Output typed OpenCAD robot JSON")
+    urdf_parser.add_argument("--asset-root", help="Local root for relative and package mesh assets")
+    urdf_parser.add_argument(
+        "--package-map", action="append", default=[], metavar="PACKAGE=PATH",
+        help="Resolve ROS package URIs against an explicit local folder; repeat as needed",
+    )
+    urdf_parser.add_argument(
+        "--allow-missing-assets", action="store_true",
+        help="Preserve missing asset references and emit warnings instead of failing",
+    )
+    urdf_parser.set_defaults(func=_cmd_import_urdf)
+
     return parser
 
 
@@ -192,6 +208,32 @@ def _cmd_run(args: argparse.Namespace) -> int:
         print(f"Wrote tree JSON to {args.tree_output}")
 
     print(f"Script completed. Nodes: {len(current.tree.nodes)}")
+    return 0
+
+
+def _cmd_import_urdf(args: argparse.Namespace) -> int:
+    """Write a loss-aware OpenCAD robot document from one local URDF."""
+    from opencad.robotics import import_urdf
+
+    package_roots: dict[str, Path] = {}
+    for mapping in args.package_map:
+        package, separator, path = mapping.partition("=")
+        if not separator or not package or not path or package in package_roots:
+            raise ValueError(f"Invalid or duplicated --package-map {mapping!r}; use PACKAGE=PATH.")
+        package_roots[package] = Path(path)
+
+    result = import_urdf(
+        args.source,
+        asset_root=args.asset_root,
+        package_roots=package_roots,
+        require_assets=not args.allow_missing_assets,
+    )
+    destination = Path(args.output) if args.output else Path(args.source).with_suffix(".opencad.json")
+    destination.write_text(result.model_dump_json(indent=2), encoding="utf-8")
+    print(f"Imported {result.robot.name}: {len(result.robot.links)} links, "
+          f"{len(result.robot.joints)} joints -> {destination}")
+    for warning in result.warnings:
+        print(f"WARNING: {warning}", file=sys.stderr)
     return 0
 
 
