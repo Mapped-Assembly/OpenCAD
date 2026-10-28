@@ -170,9 +170,10 @@ def export_ros_package(
         Path(export.manifest_path).unlink()
         oi_bundle = robot_to_oi_asset(robot, urdf_sha256=_sha(generated)) if include_oi else None
         if oi_bundle is not None:
-            (root / "oi.asset.json").write_text(
-                json.dumps(oi_bundle, sort_keys=True, indent=2) + "\n", encoding="utf-8"
-            )
+            oi_json = json.dumps(oi_bundle, sort_keys=True, indent=2) + "\n"
+            if len(oi_json.encode("utf-8")) > 25 * 1024 * 1024:
+                raise ValueError("OpenIndustries geometry bundle exceeds 25 MiB.")
+            (root / "oi.asset.json").write_text(oi_json, encoding="utf-8")
         manifest = _handoff(robot, generated, package, staged, oi_bundle)
         (root / "robot.handoff.json").write_text(
             json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8"
