@@ -215,8 +215,8 @@ def _visual(
         if not attributes and "rgba" in mat:
             color_values = _vector(mat["rgba"], "material rgba")
             attributes["name"] = "opencad_color_" + hashlib.sha256(color_values.encode()).hexdigest()[:12]
-        if not attributes:
-            warnings.append("Unnamed material without RGBA omitted; full metadata remains in manifest.")
+        if "rgba" not in mat:
+            warnings.append("Material without inline RGBA omitted; full metadata remains in manifest.")
             return
         material = ET.SubElement(element, "material", attributes)
         if "rgba" in mat:
