@@ -62,6 +62,7 @@ async def _bounded_request(request: Request) -> bytes:
 
 def _unpack(data: bytes, filename: str, directory: Path) -> Path:
     """Extract a single safe robot URDF or a local ZIP with bounded members."""
+    directory.mkdir(parents=True, exist_ok=True)
     if filename.lower().endswith(".urdf"):
         source = directory / "robot.urdf"
         source.write_bytes(data)
@@ -184,10 +185,12 @@ async def import_robot(request: Request, filename: str = Query(min_length=1)) ->
     data = await _bounded_request(request)
     try:
         with tempfile.TemporaryDirectory(prefix="opencad-robot-") as temp:
-            robot = _import_bundle(data, filename, Path(temp))
+            parsed = import_urdf(_unpack(data, filename, Path(temp)), asset_root=Path(temp))
+            robot = parsed.robot
             meshes = _view_meshes(robot)
             warnings: list[str] = [
                 "Imported robot descriptions are not physics-verified.",
+                *parsed.warnings,
             ]
             export_blocker: str | None = None
             try:
