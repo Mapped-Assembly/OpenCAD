@@ -83,6 +83,13 @@ def _build_parser() -> argparse.ArgumentParser:
     urdf_export.add_argument("--meshes-dir", default="meshes", help="Portable relative mesh directory")
     urdf_export.set_defaults(func=_cmd_export_urdf)
 
+    ros_export = export_formats.add_parser("ros-package", help="Export ROS 2 package and OI asset")
+    ros_export.add_argument("source", help="Canonical OpenCAD robot JSON or imported URDF envelope")
+    ros_export.add_argument("--output", required=True, help="New ROS package directory")
+    ros_export.add_argument("--package-name", help="Explicit ROS snake_case package name")
+    ros_export.add_argument("--no-oi", action="store_true", help="Skip OpenIndustries geometry asset")
+    ros_export.set_defaults(func=_cmd_export_ros_package)
+
     return parser
 
 
@@ -267,6 +274,32 @@ def _cmd_export_urdf(args: argparse.Namespace) -> int:
     print(f"Exported OpenCAD manifest -> {result.manifest_path}")
     for path in result.mesh_paths:
         print(f"Exported mesh -> {path}")
+    for warning in result.warnings:
+        print(f"WARNING: {warning}", file=sys.stderr)
+    return 0
+
+
+def _cmd_export_ros_package(args: argparse.Namespace) -> int:
+    """Export a portable ROS package and optional OpenIndustries asset."""
+    import json
+
+    from opencad.robotics import RobotDescription, URDFImportResult, export_ros_package
+    data = json.loads(Path(args.source).read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("Expected an OpenCAD JSON robot document.")
+    if "links" in data and "assembly" in data:
+        robot = RobotDescription.model_validate(data)
+    elif "robot" in data:
+        robot = URDFImportResult.model_validate(data).robot
+    else:
+        raise ValueError("Expected RobotDescription or URDFImportResult JSON.")
+    result = export_ros_package(robot, args.output, package_name=args.package_name,
+                                include_oi=not args.no_oi)
+    print(f"ROS package: {result.package_directory}")
+    print(f"URDF: {result.urdf_path}")
+    print(f"Handoff: {result.manifest_path}")
+    if result.oi_asset_path:
+        print(f"OpenIndustries asset: {result.oi_asset_path}")
     for warning in result.warnings:
         print(f"WARNING: {warning}", file=sys.stderr)
     return 0
