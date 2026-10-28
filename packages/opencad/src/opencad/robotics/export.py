@@ -259,7 +259,14 @@ def _joint(root: ET.Element, joint: RobotJoint, warnings: list[str]) -> None:
     ET.SubElement(element, "child", {"link": joint.child})
     _origin(element, joint.origin)
     if joint.joint_type != "fixed":
-        ET.SubElement(element, "axis", {"xyz": _vector(joint.axis, "joint axis")})
+        # URDF axis is a unit vector in the joint-local frame. Serializers that
+        # leave a non-unit axis can disagree with consumers that multiply
+        # prismatic travel directly by the raw vector instead of normalizing.
+        magnitude = math.sqrt(sum(float(v) ** 2 for v in joint.axis))
+        if not math.isfinite(magnitude) or magnitude <= 1e-12:
+            raise ValueError(f"Joint {joint.name!r} has invalid axis length.")
+        normalized_axis = tuple(float(v) / magnitude for v in joint.axis)
+        ET.SubElement(element, "axis", {"xyz": _vector(normalized_axis, "joint axis")})
     if joint.joint_type in _MOVING:
         limits = {key: _number(joint.limits[key], f"joint {joint.name} {key}")
                   for key in ("lower", "upper", "effort", "velocity")

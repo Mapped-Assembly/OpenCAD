@@ -140,6 +140,28 @@ def test_mesh_bundle_and_mm_scale(tmp_path: Path) -> None:
     assert imported.links["foot"].visuals[0].geometry.mesh_scale == (0.001,) * 3
 
 
+def test_export_normalizes_joint_axis_for_independent_prismatic_fk(tmp_path: Path) -> None:
+    """Non-unit joint axes must not silently change prismatic displacement."""
+    robot = (
+        RobotBuilder("axis_robot")
+        .add_link("root")
+        .add_link("slider")
+        .add_joint(
+            "travel", "root", "slider", joint_type="prismatic",
+            axis=(0.3, 0, 0.8),
+            limits={"lower": 0.0, "upper": 0.1, "effort": 1.0, "velocity": 1.0},
+        )
+        .build()
+    )
+    export = export_urdf(robot, tmp_path / "axis_robot.urdf")
+    joint = ET.parse(export.urdf_path).getroot().find("./joint[@name='travel']")
+    assert joint is not None
+    axis = tuple(float(v) for v in joint.find("axis").get("xyz").split())
+    assert math.sqrt(sum(v * v for v in axis)) == pytest.approx(1.0, abs=1e-12)
+    imported = import_urdf(export.urdf_path).robot
+    assert imported.joints["travel"].axis == pytest.approx(axis)
+
+
 def test_continuous_joint_has_no_fabricated_bounds(tmp_path: Path) -> None:
     """Unlimited joints keep semantics; extraneous imported bounds are diagnosed."""
     robot = (RobotBuilder("rotor").add_link("body").add_link("wheel")

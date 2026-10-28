@@ -25,6 +25,8 @@ jobs:
         with:
           python-version: "3.11"
       - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: false # Avoid post-job cache prune lock from background runtime
       - uses: pnpm/action-setup@v4
         with:
           version: 10.25.0
@@ -42,7 +44,7 @@ jobs:
         run: uv run --with playwright python -m playwright install --with-deps chromium
       - name: Start real backend and Vite application
         run: |
-          uv run --no-sync --package opencad-backend python -m uvicorn opencad_server.app:app --host 127.0.0.1 --port 8000 > /tmp/opencad-backend.log 2>&1 &
+          .venv/bin/python -m uvicorn opencad_server.app:app --host 127.0.0.1 --port 8000 > /tmp/opencad-backend.log 2>&1 &
           pnpm --filter opencad-viewport-app dev --host 127.0.0.1 > /tmp/opencad-vite.log 2>&1 &
           for i in $(seq 1 45); do
             if curl -fsS http://127.0.0.1:8000/robotics/poses -X POST -H 'Content-Type: application/json' -d '{}' > /dev/null 2>&1 &&
