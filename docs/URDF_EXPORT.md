@@ -10,7 +10,7 @@ or imply that a robot can be manufactured or operated safely.
 
 ## Generate a robot entirely in Python (no hand-written XML)
 
-\`\`\`python
+```python
 from pathlib import Path
 
 from opencad.kernel.core.models import RigidTransform
@@ -45,14 +45,14 @@ result = export_urdf(robot, "two_link_arm.urdf")
 print(result.urdf_path, result.warnings)
 restored = import_urdf(result.urdf_path).robot
 assert set(restored.links) == {"base", "forearm"}
-\`\`\`
+```
 
 ## Build link geometry from native OpenCAD Parts
 
 With the optional native OCCT geometry backend installed, each OpenCAD Part
 can become an independent robot link with its own STL mesh.
 
-\`\`\`python
+```python
 from opencad import Part
 from opencad.kernel.core.backend_factory import create_backend
 from opencad.runtime import RuntimeContext
@@ -73,35 +73,35 @@ robot = (
     .build()
 )
 export_urdf(robot, "generated/bench_robot.urdf")
-\`\`\`
+```
 
-The generated \`generated/meshes/<sha256>.stl\` files are copied into a portable
+The generated `generated/meshes/<sha256>.stl` files are copied into a portable
 bundle. They preserve OpenCAD native STL vertex coordinates in **millimeters**;
-the URDF \`mesh scale="0.001 0.001 0.001"\` converts them to meters. The importer
+the URDF `mesh scale="0.001 0.001 0.001"` converts them to meters. The importer
 preserves this scale when it reads the resulting URDF.
 
 No implicit collision shapes are fabricated. Use
-\`collision_from_mesh=True\` on \`add_part_link\` only when you intentionally want
+`collision_from_mesh=True` on `add_part_link` only when you intentionally want
 the same mesh referenced as collision geometry; this is not a clearance or
 collision accuracy guarantee.
 
 ## CLI: export previously imported URDF
 
-The importer writes an \`URDFImportResult\` JSON envelope. This can be
-exported directly, or you can save \`RobotDescription.model_dump_json()\`
+The importer writes an `URDFImportResult` JSON envelope. This can be
+exported directly, or you can save `RobotDescription.model_dump_json()`
 from your own Python robot builder and export that JSON instead.
 
-\`\`\`bash
+```bash
 opencad import urdf robot.urdf --asset-root . --output robot.opencad.json
 opencad export urdf robot.opencad.json --output rebuilt/robot.urdf
-\`\`\`
+```
 
 The export creates three types of artifacts:
 
-- \`robot.urdf\`: standard ROS-compatible robot definition (no OpenCAD tags).
-- \`meshes/<sha256>.stl\`: deduplicated content-addressed triangle meshes,
+- `robot.urdf`: standard ROS-compatible robot definition (no OpenCAD tags).
+- `meshes/<sha256>.stl`: deduplicated content-addressed triangle meshes,
   if referenced by any link.
-- \`robot.opencad.json\`: full typed robot metadata, source/provenance,
+- `robot.opencad.json`: full typed robot metadata, source/provenance,
   diagnostics and mesh list for loss-aware interchange.
 
 ## Units, validation and limitations
