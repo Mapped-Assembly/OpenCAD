@@ -289,6 +289,16 @@ opencad export urdf imported.opencad.json --output robot.urdf
 See [URDF generation, units and limitations](docs/URDF_EXPORT.md) and
 [URDF import](docs/URDF_IMPORT.md).
 
+### Interactive URDF Robot Workspace
+
+The reference app offers a dedicated **URDF Robot Workspace** for importing
+local URDF/ZIP assemblies, viewing per-link geometry, inspecting joint
+kinematics, adjusting supported joint values, and exporting portable URDF/STL
+bundles. Existing CAD feature history remains independent. Closed-loop and
+unsupported joint mechanisms are labeled as **unvalidated**, not simulated.
+
+See [robot viewport instructions and browser verification](docs/URDF_VIEWPORT.md).
+
 ## Configuration
 
 Runtime defaults are documented in `.env.example`.
