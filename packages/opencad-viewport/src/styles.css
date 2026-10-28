@@ -570,3 +570,35 @@ body {
 .workspace > .scene-demo-toggle { position: absolute; top: 62px; left: 6px; z-index: 20; }
 
 .scene-collision { margin: 0 12px 12px; padding: 10px; border: 1px solid #e5aaa6; border-radius: 8px; background: #fff0ee; color: #9b2820; }
+
+
+/* Dedicated URDF workspace: robot hierarchy is independent of CAD features. */
+.demo-switcher { position: absolute; top: 62px; left: 6px; z-index: 20; display: flex; gap: 8px; }
+.workspace > .demo-switcher .scene-demo-toggle { position: static; margin: 10px 0; }
+.robot-workspace { display: flex; flex-direction: column; min-height: 100vh; background: #f7f9fc; }
+.robot-workspace-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 22px; border-bottom: 1px solid #d5dbe4; }
+.robot-workspace-header h2 { margin: 0; font-size: 1.15rem; }
+.robot-workspace-header p { margin: 4px 0; color: #475569; font-size: .8rem; }
+.robot-workspace-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 14px 22px; }
+.robot-workspace-actions label { display: flex; align-items: center; gap: 8px; }
+.robot-workspace button { cursor: pointer; padding: 6px 9px; }
+.robot-workspace button:disabled { opacity: .55; cursor: not-allowed; }
+.robot-workspace-body { display: grid; grid-template-columns: 315px minmax(0, 1fr); flex: 1; min-height: 480px; }
+.robot-workspace-body > .viewport3d { min-height: 500px; }
+.robot-inspector { padding: 16px; background: white; border-right: 1px solid #dbe3ee; max-height: calc(100vh - 215px); overflow-y: auto; }
+.robot-inspector h3 { margin: 12px 0 7px; }
+.robot-inspector [role="tree"] { display: grid; gap: 3px; }
+.robot-inspector [role="treeitem"] { text-align: left; background: #f2f5fa; border: 0; border-radius: 4px; }
+.robot-inspector [aria-selected="true"] { background: #d9e9ff; color: #0b4ea2; }
+.robot-joint { border-top: 1px solid #e4eaf2; padding: 10px 0; font-size: .8rem; }
+.robot-joint p { margin: 5px 0; color: #566177; }
+.robot-joint label { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.robot-joint input { max-width: 100px; }
+.robot-notices { padding: 10px 22px; background: #eef3fa; border-bottom: 1px solid #dbe3ee; font-size: .8rem; }
+.robot-notices p { margin: 4px 0; }
+.robot-error { color: #a12b20; padding: 5px 22px; }
+@media (max-width: 760px) {
+  .robot-workspace-body { grid-template-columns: 1fr; }
+  .robot-inspector { max-height: 320px; }
+  .robot-workspace-body > .viewport3d { min-height: 420px; }
+}
