@@ -250,13 +250,18 @@ def _cmd_export_urdf(args: argparse.Namespace) -> int:
     from opencad.robotics import RobotDescription, URDFImportResult, export_urdf
 
     source = Path(args.source)
-    raw = source.read_text(encoding="utf-8")
-    try:
-        robot = RobotDescription.model_validate_json(raw)
-    except Exception:
-        # Issue #2 emits URDFImportResult; accept it without requiring users
-        # to manually remove the surrounding import/diagnostic envelope.
-        robot = URDFImportResult.model_validate_json(raw).robot
+    import json
+
+    data = json.loads(source.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("OpenCAD robot JSON must be a JSON object.")
+    if "links" in data and "assembly" in data:
+        robot = RobotDescription.model_validate(data)
+    elif "robot" in data:
+        # Accept Issue #2's URDFImportResult and generated provenance sidecars.
+        robot = URDFImportResult.model_validate(data).robot
+    else:
+        raise ValueError("Expected a RobotDescription or URDFImportResult JSON document.")
     result = export_urdf(robot, args.output, meshes_dir=args.meshes_dir)
     print(f"Exported URDF -> {result.urdf_path}")
     print(f"Exported OpenCAD manifest -> {result.manifest_path}")
