@@ -185,7 +185,8 @@ async def import_robot(request: Request, filename: str = Query(min_length=1)) ->
     data = await _bounded_request(request)
     try:
         with tempfile.TemporaryDirectory(prefix="opencad-robot-") as temp:
-            parsed = import_urdf(_unpack(data, filename, Path(temp)), asset_root=Path(temp))
+            source_path = _unpack(data, filename, Path(temp))
+            parsed = import_urdf(source_path, asset_root=source_path.parent)
             robot = parsed.robot
             meshes = _view_meshes(robot)
             warnings: list[str] = [
