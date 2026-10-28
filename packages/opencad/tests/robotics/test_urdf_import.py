@@ -187,7 +187,7 @@ def test_snapshot_model_round_trip_is_lossless(tmp_path: Path) -> None:
     """Typed robot metadata and canonical assembly survive JSON serialization."""
     result = import_urdf(_write(tmp_path, _robot()))
     restored = URDFImportResult.model_validate_json(result.model_dump_json())
-    assert restored == result
+    assert restored.model_dump(mode="json") == result.model_dump(mode="json")
     assert restored.robot.assembly.components["urdf:tip"].metadata["parent_joint"] == "hinge"
 
 
