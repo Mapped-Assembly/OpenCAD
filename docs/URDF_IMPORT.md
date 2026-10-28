@@ -47,6 +47,26 @@ licenses separately. `package://assets/example.stl`, as used by Petoi Quaddle,
 resolves to `<asset_root>/assets/example.stl` by default. Explicit package
 root mappings are opt-in.
 
+## CLI
+
+The importer is also available through the existing headless `opencad` CLI:
+
+```bash
+opencad import urdf robots/quaddle/robot.urdf \
+  --asset-root robots/quaddle \
+  --output quaddle.opencad.json
+
+# Nonstandard ROS package installation:
+opencad import urdf model.urdf --package-map my_robot_description=/local/ros/src/my_robot_description
+
+# XML structure inspection without downloaded assets:
+opencad import urdf model.urdf --allow-missing-assets
+```
+
+The generated JSON is an `URDFImportResult` envelope containing the
+`RobotDescription`, `AssemblyTree`, and import diagnostics. It is not a
+ROS simulation artifact or a kinematic-motion guarantee.
+
 ## Units and geometry
 
 | Data | Representation |
@@ -102,7 +122,7 @@ are **not** vendored in OpenCAD.
 ## Next steps
 
 1. Add explicit compatible joint-frame FK and viewport mesh loading.
-2. Add a CLI wrapper (proposed `opencad import urdf ...`) and UI file import.
+2. Add UI file import, previews and joint controls.
 3. Share the canonical robot document with URDF **export** in issue #3.
 4. Compare supported FK link poses against an independent URDF implementation;
    flag simulation and physical validation as distinct stages.
