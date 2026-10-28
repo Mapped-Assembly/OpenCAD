@@ -499,8 +499,9 @@ def import_urdf(
                       "joint_angles": "rad", "prismatic_limits": "m",
                       "mass": "kg", "inertia": "kg*m^2"},
             "verification": {"geometry_loaded": not bool(missing),
-                             "kinematics_supported": all(j.joint_type in ("fixed", "revolute", "prismatic") and j.mimic is None for j in joints.values()),
-                             "constraints_unresolved": any(j.mimic is not None for j in joints.values()),
+                             "kinematics_supported": False,  # imported, not yet wired to FK
+                             "joint_types_recognized": all(j.joint_type in ("fixed", "revolute", "prismatic") and j.mimic is None for j in joints.values()),
+                             "constraints_unresolved": any(j.mimic is not None for j in joints.values()) or any(name.startswith("closing_") for name in links),
                              "dynamics_unverified": True},
         },
     )
