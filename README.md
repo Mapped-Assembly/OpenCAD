@@ -263,6 +263,32 @@ Python: `from opencad.robotics import import_urdf`.
 See [URDF import and limitations](docs/URDF_IMPORT.md) and
 [the implementation issue](https://github.com/Mapped-Assembly/OpenCAD/issues/2).
 
+## Robotics: generate and export URDF (experimental)
+
+OpenCAD supports typed robot authoring, URDF import, and deterministic URDF
+generation with portable STL bundles. The same `RobotDescription` model is used
+for both directions; exported links, origins, joint limits, geometry references,
+and SI inertial data remain explicit and inspectable. This is **not** a
+physics or kinematics certification.
+
+```python
+from opencad.robotics import RobotBuilder, RobotGeometry, RobotVisual, export_urdf
+robot = (RobotBuilder("demo")
+         .add_link("base", visuals=[RobotVisual(geometry=RobotGeometry(kind="box", size_mm=(40, 40, 20)))])
+         .add_link("tip")
+         .add_joint("hinge", "base", "tip", joint_type="revolute",
+                    limits={"lower": -1, "upper": 1, "effort": 2, "velocity": 1})
+         .build())
+export_urdf(robot, "demo.urdf")
+```
+
+```bash
+opencad export urdf imported.opencad.json --output robot.urdf
+```
+
+See [URDF generation, units and limitations](docs/URDF_EXPORT.md) and
+[URDF import](docs/URDF_IMPORT.md).
+
 ## Configuration
 
 Runtime defaults are documented in `.env.example`.

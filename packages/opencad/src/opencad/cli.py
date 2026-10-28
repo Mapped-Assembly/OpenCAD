@@ -75,6 +75,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     urdf_parser.set_defaults(func=_cmd_import_urdf)
 
+    export_parser = subparsers.add_parser("export", help="Export a structured engineering description")
+    export_formats = export_parser.add_subparsers(dest="export_format", required=True)
+    urdf_export = export_formats.add_parser("urdf", help="Export a typed OpenCAD robot JSON to URDF")
+    urdf_export.add_argument("source", help="OpenCAD typed robot JSON or import result JSON")
+    urdf_export.add_argument("--output", required=True, help="Destination robot.urdf file")
+    urdf_export.add_argument("--meshes-dir", default="meshes", help="Portable relative mesh directory")
+    urdf_export.set_defaults(func=_cmd_export_urdf)
+
     return parser
 
 
@@ -232,6 +240,33 @@ def _cmd_import_urdf(args: argparse.Namespace) -> int:
     destination.write_text(result.model_dump_json(indent=2), encoding="utf-8")
     print(f"Imported {result.robot.name}: {len(result.robot.links)} links, "
           f"{len(result.robot.joints)} joints -> {destination}")
+    for warning in result.warnings:
+        print(f"WARNING: {warning}", file=sys.stderr)
+    return 0
+
+
+def _cmd_export_urdf(args: argparse.Namespace) -> int:
+    """Export a canonical typed OpenCAD robot JSON to URDF and mesh assets."""
+    from opencad.robotics import RobotDescription, URDFImportResult, export_urdf
+
+    source = Path(args.source)
+    import json
+
+    data = json.loads(source.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("OpenCAD robot JSON must be a JSON object.")
+    if "links" in data and "assembly" in data:
+        robot = RobotDescription.model_validate(data)
+    elif "robot" in data:
+        # Accept Issue #2's URDFImportResult and generated provenance sidecars.
+        robot = URDFImportResult.model_validate(data).robot
+    else:
+        raise ValueError("Expected a RobotDescription or URDFImportResult JSON document.")
+    result = export_urdf(robot, args.output, meshes_dir=args.meshes_dir)
+    print(f"Exported URDF -> {result.urdf_path}")
+    print(f"Exported OpenCAD manifest -> {result.manifest_path}")
+    for path in result.mesh_paths:
+        print(f"Exported mesh -> {path}")
     for warning in result.warnings:
         print(f"WARNING: {warning}", file=sys.stderr)
     return 0
