@@ -11,7 +11,6 @@ import json
 import math
 import os
 import re
-import shutil
 import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -213,6 +212,12 @@ def _visual(
     if tag == "visual" and appearance.material:
         mat = appearance.material
         attributes = {"name": _name(str(mat["name"]), "material")} if mat.get("name") else {}
+        if not attributes and "rgba" in mat:
+            color_values = _vector(mat["rgba"], "material rgba")
+            attributes["name"] = "opencad_color_" + hashlib.sha256(color_values.encode()).hexdigest()[:12]
+        if not attributes:
+            warnings.append("Unnamed material without RGBA omitted; full metadata remains in manifest.")
+            return
         material = ET.SubElement(element, "material", attributes)
         if "rgba" in mat:
             rgba = mat["rgba"]
@@ -319,11 +324,12 @@ def export_urdf(
         staged_meshes = stage / meshes_dir
         staged_meshes.mkdir()
         for source_name, source in sorted(sources.items()):
-            digest = hashlib.sha256(source.read_bytes()).hexdigest()
+            data = source.read_bytes()
+            digest = hashlib.sha256(data).hexdigest()
             filename = f"{digest}.stl"
             staged_file = staged_meshes / filename
             if not staged_file.exists():
-                shutil.copyfile(source, staged_file)
+                staged_file.write_bytes(data)
             mesh_uris[source_name] = f"{meshes_dir}/{filename}"
             all_meshes.append(str(destination.parent / meshes_dir / filename))
 
