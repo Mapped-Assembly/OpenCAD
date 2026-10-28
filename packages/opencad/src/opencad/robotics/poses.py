@@ -54,11 +54,17 @@ def evaluate_robot_poses(
     unknown = set(positions) - set(robot.joints)
     if unknown:
         raise ValueError(f"Unknown robot joint values: {sorted(unknown)}")
-    if robot.metadata.get("verification", {}).get("constraints_unresolved"):
-        raise ValueError("Robot has unresolved passive or closed-loop constraints; FK is not certified.")
+    # A caller must not bypass explicit constraints by manually clearing a
+    # stale legacy verification flag. The sidecar is independently validated.
+    from opencad.robotics.constraints import diagnose_mechanism
+
+    # Keep precise, established errors for directly unsupported URDF joints,
+    # while still enforcing the sidecar's additional unresolved constraints.
     for joint in robot.joints.values():
         if joint.joint_type in ("planar", "floating") or joint.mimic is not None:
             raise ValueError(f"Cannot evaluate unsupported/mimic joint {joint.name!r}.")
+    if diagnose_mechanism(robot).state == "constraints_unresolved":
+        raise ValueError("Robot has unresolved passive or closed-loop constraints; FK is not certified.")
     children: dict[str, list] = {name: [] for name in robot.links}
     for joint in robot.joints.values():
         children[joint.parent].append(joint)

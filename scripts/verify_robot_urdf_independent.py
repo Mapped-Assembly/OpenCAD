@@ -26,6 +26,7 @@ from opencad.robotics import (
     RobotGeometry,
     RobotInertial,
     RobotVisual,
+    diagnose_mechanism,
     export_urdf,
     import_urdf,
 )
@@ -359,6 +360,11 @@ def _verify_pinned_quaddle(output_dir: Path) -> dict[str, Any]:
         raise AssertionError("External validator could not parse regenerated Quaddle joints.")
     if not robot.metadata["verification"]["constraints_unresolved"]:
         raise AssertionError("Quaddle passive/closing constraints must be flagged unresolved.")
+    mechanism = diagnose_mechanism(robot)
+    if mechanism.state != "constraints_unresolved" or not mechanism.possible_closure_markers:
+        raise AssertionError("Real Quaddle must be diagnosed as having possible closure markers.")
+    if mechanism.supported_solvers:
+        raise AssertionError("Quaddle must not be assigned a fabricated dimensioned four-bar solver.")
     try:
         evaluate_robot_poses(robot, {})
     except ValueError as exc:
@@ -386,6 +392,7 @@ def _verify_pinned_quaddle(output_dir: Path) -> dict[str, Any]:
         "kinematic_agreement": "not_asserted_closed_loop_constraints",
         "physical_validation": "not_performed",
         "constraints_unresolved": True,
+        "mechanism_diagnostic": mechanism.model_dump(mode="json"),
         "mesh_assets_verified": len(assets),
         "mesh_asset_sha256": {
             mesh.name: _sha256(mesh) for mesh in assets
