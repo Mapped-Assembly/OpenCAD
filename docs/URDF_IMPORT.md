@@ -74,6 +74,8 @@ This alone does **not** evaluate an articulated robot's full forward kinematics.
 - Existing OpenCAD forward kinematics handles fixed, revolute and prismatic
   joints in its current, narrower shape-occurrence model. Imported URDF
   joint descriptions are **not automatically executed** through that model.
+  The importer reports `kinematics_supported=False` until that integration
+  is implemented, even if all joint types are recognized.
 - Continuous, planar, floating and mimic joints are preserved and/or diagnosed;
   they are not silently converted to fixed/revolute joints.
 - URDF tree kinematics cannot, by itself, enforce Petoi Quaddle's four-bar
