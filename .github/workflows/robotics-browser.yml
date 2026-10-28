@@ -1,0 +1,68 @@
+name: Robot browser E2E
+
+on:
+  pull_request:
+    paths:
+      - "apps/opencad_viewport/**"
+      - "apps/backend/**"
+      - "packages/opencad/src/opencad/robotics/**"
+      - "packages/opencad-viewport/**"
+      - "scripts/e2e_robot_viewport.py"
+      - ".github/workflows/robotics-browser.yml"
+  workflow_dispatch:
+
+jobs:
+  robot-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OPENCAD_KERNEL_BACKEND: analytic
+      OPENCAD_BROWSER_EVIDENCE: /tmp/opencad-robot-evidence
+      VITE_BASE_URL: http://127.0.0.1:8000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.25.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install OpenCAD and viewport
+        run: |
+          uv sync --all-packages --group test
+          pnpm install --frozen-lockfile
+          pnpm --filter opencad-viewport build
+      - name: Install Chromium for Playwright
+        run: uv run --with playwright python -m playwright install --with-deps chromium
+      - name: Start real backend and Vite application
+        run: |
+          uv run --no-sync --package opencad-backend python -m uvicorn opencad_server.app:app --host 127.0.0.1 --port 8000 > /tmp/opencad-backend.log 2>&1 &
+          pnpm --filter opencad-viewport-app dev --host 127.0.0.1 > /tmp/opencad-vite.log 2>&1 &
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:8000/robotics/poses -X POST -H 'Content-Type: application/json' -d '{}' > /dev/null 2>&1 &&
+               curl -fsS http://127.0.0.1:5173/ > /dev/null 2>&1; then break; fi
+            # A 422 from /poses is expected without a valid request, so probe OpenAPI instead.
+            if curl -fsS http://127.0.0.1:8000/openapi.json > /dev/null 2>&1 &&
+               curl -fsS http://127.0.0.1:5173/ > /dev/null 2>&1; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8000/openapi.json > /dev/null
+          curl -fsS http://127.0.0.1:5173/ > /dev/null
+      - name: Real Chromium robot workflow
+        run: uv run --with playwright python scripts/e2e_robot_viewport.py
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencad-robot-browser-evidence
+          path: |
+            /tmp/opencad-robot-evidence/
+            /tmp/opencad-backend.log
+            /tmp/opencad-vite.log
+          if-no-files-found: ignore

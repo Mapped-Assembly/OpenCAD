@@ -15,6 +15,9 @@ export { ComponentTreePanel } from "./components/ComponentTreePanel";
 export { FeatureTreePanel } from "./components/FeatureTreePanel";
 export { SketchEditor } from "./components/SketchEditor";
 export { Viewport3D } from "./components/Viewport3D";
+export { RobotWorkspace } from "./components/RobotWorkspace";
+export { robotPreviewMeshes, jointControlRange, linkForShape, robotLinkHierarchy, neutralRobotTransforms, robotCameraFraming } from "./robotics";
+export type { RobotDescriptionView, RobotImportView, RobotJoint, RobotLink, RobotPoseView } from "./robotics";
 
 // ── API client ──────────────────────────────────────────────────────
 

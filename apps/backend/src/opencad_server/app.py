@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from opencad_server import agent_router, kernel_router, solver_router, tree_router
+from opencad_server import agent_router, kernel_router, robotics_router, solver_router, tree_router
 
 
 def create_app() -> FastAPI:
@@ -22,6 +22,7 @@ def create_app() -> FastAPI:
     app.include_router(agent_router.router, prefix="/agent", tags=["AI Agent"])
     app.include_router(solver_router.router, prefix="/solver", tags=["Constraint Solver"])
     app.include_router(tree_router.router, prefix="/tree", tags=["Feature Tree"])
+    app.include_router(robotics_router.router, prefix="/robotics", tags=["Robotics"])
 
     @app.get("/")
     async def health_check():
