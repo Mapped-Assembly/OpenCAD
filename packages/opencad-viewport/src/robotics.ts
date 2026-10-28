@@ -157,3 +157,36 @@ export function neutralRobotTransforms(robot: RobotDescriptionView): Record<stri
   return transforms;
 }
 
+
+/** Frame all visible robot geometry, including their current world orientations. */
+export function robotCameraFraming(
+  meshes: readonly MeshPayload[], transforms: Readonly<Record<string, RigidTransform>>,
+): { position: [number, number, number]; target: [number, number, number] } {
+  const lo = [Infinity, Infinity, Infinity];
+  const hi = [-Infinity, -Infinity, -Infinity];
+  for (const mesh of meshes) {
+    const pose = transforms[mesh.shapeId];
+    const q = new Quaternion(...(pose?.rotation_quaternion_xyzw ?? [0, 0, 0, 1]));
+    const t = pose?.translation_mm ?? [0, 0, 0];
+    for (let i = 0; i + 2 < mesh.vertices.length; i += 3) {
+      const p = new Vector3(mesh.vertices[i], mesh.vertices[i + 1], mesh.vertices[i + 2])
+        .applyQuaternion(q);
+      for (let axis = 0; axis < 3; axis++) {
+        const v = p.getComponent(axis) + t[axis];
+        lo[axis] = Math.min(lo[axis], v);
+        hi[axis] = Math.max(hi[axis], v);
+      }
+    }
+  }
+  if (!Number.isFinite(lo[0])) {
+    return { position: [90, -120, 80], target: [0, 0, 0] };
+  }
+  const target: [number, number, number] = [
+    (lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2,
+  ];
+  const distance = Math.max(40, ...hi.map((max, i) => max - lo[i])) * 2.5;
+  return {
+    position: [target[0] + distance, target[1] - distance, target[2] + distance * 0.7],
+    target,
+  };
+}
