@@ -299,6 +299,26 @@ unsupported joint mechanisms are labeled as **unvalidated**, not simulated.
 
 See [robot viewport instructions and browser verification](docs/URDF_VIEWPORT.md).
 
+### ROS 2 package and OpenIndustries robot handoff
+
+Export a complete ROS2 robot-description package with
+`package://<package>/meshes/<sha256>.stl` paths, a versioned provenance
+contract, and an OpenIndustries v1 static robot asset:
+
+```bash
+opencad export ros-package my-robot.opencad.json \
+  --package-name my_robot_description \
+  --output /tmp/my_robot_description
+```
+
+The OpenIndustries asset retains the URDF link hierarchy and separate visual
+occurrences, converting OpenCAD Z-up/mm to OI Y-up/m. The geometry is a neutral
+configuration **not verified** for kinematics, closed-loop constraints, forces
+or safe hardware motion.
+
+See [ROS/OI handoff guide](docs/ROS_OI_HANDOFF.md), and
+[issue #9](https://github.com/Mapped-Assembly/OpenCAD/issues/9).
+
 ## Configuration
 
 Runtime defaults are documented in `.env.example`.

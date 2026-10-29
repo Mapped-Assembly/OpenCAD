@@ -1,0 +1,72 @@
+name: OpenCAD ROS / OpenIndustries Handoff
+
+on:
+  pull_request:
+    paths:
+      - "packages/opencad/src/opencad/robotics/**"
+      - "packages/opencad/tests/robotics/test_ros_oi_handoff.py"
+      - "scripts/examples/ros_oi_handoff.py"
+      - "docs/ROS_OI_HANDOFF.md"
+      - ".github/workflows/robotics-ros-oi.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/opencad/src/opencad/robotics/**"
+      - "packages/opencad/tests/robotics/test_ros_oi_handoff.py"
+      - "scripts/examples/ros_oi_handoff.py"
+      - ".github/workflows/robotics-ros-oi.yml"
+  workflow_dispatch:
+
+jobs:
+  real-opencad-to-openindustries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: Mapped-Assembly/OpenIndustries
+          ref: a1d309f6c5c5e9190684d84303e7083658ea1fae
+          path: openindustries
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: openindustries/package-lock.json
+      - name: Install OpenCAD core and run producer contract tests
+        run: |
+          uv sync --package opencad --group test
+          uv run --no-sync --package opencad python -m pytest packages/opencad/tests/robotics/test_ros_oi_handoff.py
+      - name: Generate REAL OpenCAD robot and ROS package
+        run: |
+          uv run --no-sync --package opencad python scripts/examples/ros_oi_handoff.py "$RUNNER_TEMP/bench_robot_description"
+      - name: Install OpenIndustries consumer
+        working-directory: openindustries
+        run: npm ci
+      - name: Import REAL generated robot into OpenIndustries local scene
+        working-directory: openindustries
+        env:
+          OPENCAD_OI_ASSET_PATH: ${{ runner.temp }}/bench_robot_description/oi.asset.json
+        run: npm run test:opencad-robot
+      - name: Preserve ROS/OI handoff verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencad-ros-oi-handoff
+          path: |
+            ${{ runner.temp }}/bench_robot_description/urdf/
+            ${{ runner.temp }}/bench_robot_description/package.xml
+            ${{ runner.temp }}/bench_robot_description/CMakeLists.txt
+            ${{ runner.temp }}/bench_robot_description/robot.handoff.json
+            ${{ runner.temp }}/bench_robot_description/oi.asset.json
+          if-no-files-found: warn
+          retention-days: 30
