@@ -63,6 +63,13 @@ bundle compatible with its local scene tool. It includes:
 retains joint IDs, type/axis/limits/origin, visual **and collision** occurrence
 metadata, mass/inertial values when provided, content-addressed asset paths,
 unit conversions, source SHA-256 and `constraints_unresolved` diagnostics.
+The `mechanism_constraints_v1` field preserves validated closure, spring,
+mimic, joint-role and four-bar definitions (or is null when absent), separately
+from the diagnostic summary. These definitions can be attached to a reimported
+robot with `attach_mechanism_constraints`; they do not imply solved physics.
+Texture references are omitted because texture files are not packaged. Each
+omission is recorded by occurrence ID in the sidecar's `warnings` and returned
+export warnings; material names and inline colors remain available.
 It contains no source filesystem paths and cannot be mistaken for a physics
 simulation.
 

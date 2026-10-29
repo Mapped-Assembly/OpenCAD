@@ -33,14 +33,14 @@ def run(output: Path) -> None:
         ],
     )
     builder.add_link(
-        "slider",
+        "tip",
         visuals=[
             RobotVisual(geometry=RobotGeometry(kind="cylinder", radius_mm=10, length_mm=120),
                         material={"name": "slider_blue", "rgba": [0.2, 0.4, 0.9, 1]}),
         ],
     )
     builder.add_joint(
-        "linear_axis", "base", "slider", joint_type="prismatic",
+        "linear_axis", "base", "tip", joint_type="prismatic",
         origin=RigidTransform(translation_mm=(0, 0, 30)), axis=(0, 0, 1),
         limits={"lower": 0, "upper": 0.05, "effort": 20, "velocity": 0.1},
     )
@@ -54,10 +54,10 @@ def run(output: Path) -> None:
         package_roots={"bench_robot_description": output},
     ).robot
     assert imported.root_link == "base"
-    assert set(imported.links) == {"base", "slider"}
+    assert set(imported.links) == {"base", "tip"}
     artifact = json.loads(Path(exported.oi_asset_path).read_text())
     assert artifact["asset"]["source"]["generator"] == "opencad-robot"
-    assert artifact["asset"]["hierarchy"]["children"][0]["id"] == "urdf:slider"
+    assert artifact["asset"]["hierarchy"]["children"][0]["id"] == "urdf:tip"
     sidecar = json.loads(Path(exported.manifest_path).read_text())
     assert sidecar["verification"]["physical_validation"] == "not_performed"
     print("ROS package:", exported.package_directory)

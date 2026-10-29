@@ -40,11 +40,14 @@ def _handoff(
     oi_bundle: dict[str, Any] | None,
 ) -> dict[str, Any]:
     """Build a path-independent sidecar retaining links, joints and evidence."""
-    from opencad.robotics.constraints import diagnose_mechanism
+    from opencad.robotics.constraints import (
+        SIDECAR_KEY, diagnose_mechanism, read_mechanism_constraints,
+    )
 
     hashes = {p.name: _sha(p) for p in sorted(mesh_paths)}
     incoming = {joint.child: joint for joint in robot.joints.values()}
     links: dict[str, Any] = {}
+    warnings: list[str] = []
     for name, link in sorted(robot.links.items()):
         parent = incoming.get(name)
         records: dict[str, dict[str, Any]] = {"visual": {}, "collision": {}}
@@ -61,11 +64,18 @@ def _handoff(
                         raise ValueError(f"Missing content-addressed ROS asset {file}")
                     geometry["source_uri"] = f"package://{package}/meshes/{file}"
                     geometry["sha256"] = digest
-                records[tag][f"urdf:{name}:{tag}:{index}"] = {
+                occurrence_id = f"urdf:{name}:{tag}:{index}"
+                material = dict(occurrence.material)
+                if "texture_uri" in material:
+                    # Textures are not packaged by the URDF exporter. Do not
+                    # publish dangling references or author workstation paths.
+                    material.pop("texture_uri")
+                    warnings.append(f"{occurrence_id}: texture reference omitted; textures are not packaged.")
+                records[tag][occurrence_id] = {
                     "name": occurrence.name,
                     "origin": occurrence.origin.model_dump(mode="json"),
                     "geometry": geometry,
-                    "material": occurrence.material,
+                    "material": material,
                 }
         links[name] = {
             "id": f"urdf:{name}",
@@ -75,6 +85,7 @@ def _handoff(
             "inertial": link.inertial.model_dump(mode="json") if link.inertial else None,
         }
     diagnosis = diagnose_mechanism(robot)
+    constraints = read_mechanism_constraints(robot)
     unresolved = (
         diagnosis.state == "constraints_unresolved"
         or bool(robot.metadata.get("verification", {}).get("constraints_unresolved"))
@@ -96,6 +107,8 @@ def _handoff(
         },
         "links": links,
         "joints": {name: joint.model_dump(mode="json") for name, joint in sorted(robot.joints.items())},
+        SIDECAR_KEY: constraints.model_dump(mode="json") if constraints is not None else None,
+        "warnings": warnings,
         "mesh_sha256": hashes,
         "openindustries": {
             "asset_bundle": "oi.asset.json" if oi_bundle else None,
@@ -206,6 +219,7 @@ def export_ros_package(
         oi_asset_path=str(destination / "oi.asset.json") if include_oi else "",
         mesh_paths=[str(destination / "meshes" / p.name) for p in staged],
         warnings=[
+            *manifest["warnings"],
             "Replace template ROS maintainer and license declarations before distribution.",
             "OI preview is static neutral geometry; robot kinematics and physical safety are unverified.",
         ],

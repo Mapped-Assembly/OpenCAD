@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import subprocess
+import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -13,6 +15,7 @@ import pytest
 from opencad.kernel.core.models import RigidTransform
 from opencad.robotics import (
     RobotBuilder,
+    RobotDescription,
     RobotGeometry,
     RobotVisual,
     export_ros_package,
@@ -20,7 +23,7 @@ from opencad.robotics import (
 )
 
 
-def make_robot(tmp_path: Path):
+def make_robot(tmp_path: Path) -> RobotDescription:
     """Author a robot with independent visual/collision meshes and real frames."""
     mesh = tmp_path / "link.stl"
     mesh.write_text(
@@ -101,7 +104,7 @@ def test_ros_package_import_and_oi_handoff(tmp_path: Path) -> None:
     assert handoff["version"] == 1
     assert handoff["root_link"] == "base"
     assert handoff["source"]["ros_package"] == "demo_robot_description"
-    assert handoff["source"]["urdf_sha256"] == hashlib.sha256(source.encode()).hexdigest()
+    assert handoff["source"]["urdf_sha256"] == hashlib.sha256(Path(result.urdf_path).read_bytes()).hexdigest()
     assert handoff["mesh_sha256"][f"{original_hash}.stl"] == original_hash
     assert handoff["links"]["tip"]["parent_joint"] == "hinge"
     assert handoff["links"]["base"]["children"] == ["tip"]
@@ -205,3 +208,81 @@ def test_quaddle_style_unresolved_state_is_not_inferred_as_solved(tmp_path: Path
     sidecar = json.loads(Path(result.manifest_path).read_text())
     assert sidecar["verification"]["constraints_unresolved"] is True
     assert sidecar["verification"]["hardware_validated"] is False
+
+
+def test_mechanism_definitions_survive_package_round_trip(tmp_path: Path) -> None:
+    """Recover the complete constraint model, not only counts and warnings."""
+    from opencad.robotics import (
+        FrameAnchor, JointRole, LoopClosure, MechanismConstraintsV1,
+        MimicConstraint, PlanarFourBar, SpringConstraint,
+        attach_mechanism_constraints, read_mechanism_constraints,
+    )
+    from opencad.robotics.constraints import SIDECAR_KEY
+
+    robot = (RobotBuilder("mechanism")
+             .add_link("base", visuals=[RobotVisual(
+                 geometry=RobotGeometry(kind="box", size_mm=(10, 10, 10)))])
+             .add_link("arm").add_link("tip")
+             .add_joint("driver", "base", "arm", joint_type="continuous",
+                        limits={"effort": 1, "velocity": 1})
+             .add_joint("follower", "arm", "tip", joint_type="continuous",
+                        limits={"effort": 1, "velocity": 1}).build())
+    first = FrameAnchor(link="base", xyz_mm=(1, 2, 3))
+    second = FrameAnchor(link="tip", xyz_mm=(4, 5, 6))
+    constraints = MechanismConstraintsV1(
+        joint_roles=[JointRole(joint="driver", role="driven", evidence="encoder"),
+                     JointRole(joint="follower", role="passive")],
+        closures=[LoopClosure(id="loop", first=first, second=second)],
+        springs=[SpringConstraint(id="spring", first=first, second=second,
+                                  rest_length_mm=24, stiffness_N_per_m=123.456,
+                                  damping_N_s_per_m=0.5, provenance="measured")],
+        mimic=[MimicConstraint(joint="follower", driver="driver", multiplier=2, offset=0.1)],
+        planar_four_bars=[PlanarFourBar(id="fourbar", driver_joint="driver",
+                                       ground_mm=100, crank_mm=40, coupler_mm=90,
+                                       rocker_mm=70, assembly_branch="lower")],
+    )
+    result = export_ros_package(attach_mechanism_constraints(robot, constraints), tmp_path / "out")
+    sidecar = json.loads(Path(result.manifest_path).read_text())
+    restored = MechanismConstraintsV1.model_validate(sidecar[SIDECAR_KEY])
+    imported = import_urdf(result.urdf_path).robot
+    assert read_mechanism_constraints(attach_mechanism_constraints(imported, restored)) == constraints
+    assert sidecar["verification"]["constraints_unresolved"] is True
+    assert sidecar["verification"]["physical_validation"] == "not_performed"
+
+
+@pytest.mark.parametrize("texture_uri", [
+    "/home/alice/private-project/paint.png",
+    r"C:\Users\Alice\private-project\paint.png",
+    "textures/paint.png",
+])
+def test_texture_omission_is_portable_and_diagnosed(tmp_path: Path, texture_uri: str) -> None:
+    """Strip unbundled texture paths from visuals/collisions without mutation."""
+    robot = make_robot(tmp_path)
+    for occurrence in (*robot.links["tip"].visuals, *robot.links["tip"].collisions):
+        occurrence.material = {"name": "paint", "rgba": [1, 0, 0, 1], "texture_uri": texture_uri}
+    original = robot.model_dump()
+    result = export_ros_package(robot, tmp_path / "out")
+    sidecar = json.loads(Path(result.manifest_path).read_text())
+    for category, tag in (("visuals", "visual"), ("collisions", "collision")):
+        occurrence_id = f"urdf:tip:{tag}:0"
+        material = sidecar["links"]["tip"][category][occurrence_id]["material"]
+        assert material == {"name": "paint", "rgba": [1, 0, 0, 1]}
+        assert any(occurrence_id in warning and "texture reference omitted" in warning
+                   for warning in sidecar["warnings"])
+    assert all(warning in result.warnings for warning in sidecar["warnings"])
+    for path in Path(result.package_directory).rglob("*"):
+        if path.is_file():
+            assert "paint.png" not in path.read_text(encoding="utf-8")
+    assert robot.model_dump() == original
+
+
+def test_example_matches_pinned_consumer_fixture(tmp_path: Path) -> None:
+    """Execute the CI producer and verify link IDs required by the pinned OI test."""
+    repo = Path(__file__).resolve().parents[4]
+    output = tmp_path / "example"
+    subprocess.run([sys.executable, str(repo / "scripts/examples/ros_oi_handoff.py"), str(output)],
+                   check=True, capture_output=True, text=True)
+    asset = json.loads((output / "oi.asset.json").read_text())["asset"]
+    assert asset["hierarchy"]["id"] == "urdf:base"
+    assert asset["hierarchy"]["children"][0]["id"] == "urdf:tip"
+    assert {part["id"] for part in asset["parts"]} == {"urdf:base:visual:0", "urdf:tip:visual:0"}
