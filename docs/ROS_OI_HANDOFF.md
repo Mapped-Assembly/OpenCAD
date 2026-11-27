@@ -125,3 +125,12 @@ OpenCAD for this end-to-end check.
 **Not validated:** robot motion, spring dynamics, loop closure, collision
 clearance, actuator feasibility, safe hardware operation, IK or real-time
 control. Those require additional physics, mechanism and hardware evidence.
+
+## Large local robot assets
+
+The OI geometry bundle uses deterministic compact JSON and a 128 MiB byte limit.
+Geometry, part identities and provenance are unchanged by serialization. Exceeding
+this limit fails atomically without publishing a partial package. Individual STL
+and vertex budgets still apply. Use an OpenIndustries version whose local asset
+import/storage and native scene renderer support this 128 MiB budget. Cloud
+uploads and browser file imports retain their separate 25 MiB policies.

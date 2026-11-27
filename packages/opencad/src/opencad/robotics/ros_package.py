@@ -16,6 +16,9 @@ from opencad.robotics.export import export_urdf
 from opencad.robotics.oi_handoff import robot_to_oi_asset
 from opencad.robotics.urdf import RobotDescription
 
+# Match the bounded local/native OpenIndustries handoff; cloud uploads remain 25 MiB.
+MAX_OI_BUNDLE_BYTES = 128 * 1024 * 1024
+
 _ROS_PACKAGE_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
@@ -183,9 +186,9 @@ def export_ros_package(
         Path(export.manifest_path).unlink()
         oi_bundle = robot_to_oi_asset(robot, urdf_sha256=_sha(generated)) if include_oi else None
         if oi_bundle is not None:
-            oi_json = json.dumps(oi_bundle, sort_keys=True, indent=2) + "\n"
-            if len(oi_json.encode("utf-8")) > 25 * 1024 * 1024:
-                raise ValueError("OpenIndustries geometry bundle exceeds 25 MiB.")
+            oi_json = json.dumps(oi_bundle, sort_keys=True, separators=(",", ":")) + "\n"
+            if len(oi_json.encode("utf-8")) > MAX_OI_BUNDLE_BYTES:
+                raise ValueError("OpenIndustries geometry bundle exceeds 128 MiB local handoff limit.")
             (root / "oi.asset.json").write_text(oi_json, encoding="utf-8")
         manifest = _handoff(robot, generated, package, staged, oi_bundle)
         (root / "robot.handoff.json").write_text(

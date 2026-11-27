@@ -286,3 +286,42 @@ def test_example_matches_pinned_consumer_fixture(tmp_path: Path) -> None:
     assert asset["hierarchy"]["id"] == "urdf:base"
     assert asset["hierarchy"]["children"][0]["id"] == "urdf:tip"
     assert {part["id"] for part in asset["parts"]} == {"urdf:base:visual:0", "urdf:tip:visual:0"}
+
+
+def test_oi_budget_rejection_is_atomic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reject oversized bundles without publishing a partial ROS package."""
+    from opencad.robotics import ros_package
+
+    robot = make_robot(tmp_path)
+    monkeypatch.setattr(ros_package, "MAX_OI_BUNDLE_BYTES", 1)
+    destination = tmp_path / "too_large"
+    with pytest.raises(ValueError, match="geometry bundle exceeds"):
+        export_ros_package(robot, destination)
+    assert not destination.exists()
+    assert not list(tmp_path.glob(".opencad-ros-*"))
+
+
+def test_oi_compact_json_matches_manifest_digest(tmp_path: Path) -> None:
+    """Compact serialization preserves the complete asset and its content digest."""
+    result = export_ros_package(make_robot(tmp_path), tmp_path / "compact")
+    raw = Path(result.oi_asset_path).read_text()
+    bundle = json.loads(raw)
+    assert raw == json.dumps(bundle, sort_keys=True, separators=(",", ":")) + "\n"
+    manifest = json.loads(Path(result.manifest_path).read_text())
+    assert hashlib.sha256(raw.rstrip("\n").encode()).hexdigest() == manifest["openindustries"]["asset_sha256"]
+
+
+def test_oi_byte_budget_boundary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An exact byte budget succeeds; one byte less fails without publication."""
+    from opencad.robotics import ros_package
+
+    robot = make_robot(tmp_path)
+    initial = export_ros_package(robot, tmp_path / "initial")
+    size = Path(initial.oi_asset_path).stat().st_size
+    monkeypatch.setattr(ros_package, "MAX_OI_BUNDLE_BYTES", size)
+    exact = export_ros_package(robot, tmp_path / "exact")
+    assert Path(exact.oi_asset_path).read_bytes() == Path(initial.oi_asset_path).read_bytes()
+    monkeypatch.setattr(ros_package, "MAX_OI_BUNDLE_BYTES", size - 1)
+    with pytest.raises(ValueError, match="geometry bundle exceeds"):
+        export_ros_package(robot, tmp_path / "over")
+    assert not (tmp_path / "over").exists()
